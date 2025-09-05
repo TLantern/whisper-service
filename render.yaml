@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: whisper-v3-service
+    env: python
+    plan: free  # Free tier available!
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: WHISPER_MODEL_SIZE
+        value: base
+    healthCheckPath: /health
