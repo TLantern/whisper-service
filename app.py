@@ -8,6 +8,7 @@ import io
 import wave
 import logging
 import asyncio
+import tempfile
 from typing import Optional
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
@@ -127,18 +128,23 @@ async def transcribe_audio(file: UploadFile = File(...)):
         if file.content_type == "audio/mulaw" or (file.filename and file.filename.endswith('.mulaw')):
             audio_data = convert_mulaw_to_wav(audio_data)
         
-        # Create temporary file for Whisper
-        temp_file = io.BytesIO(audio_data)
-        temp_file.name = "audio.wav"
+        # Save to temporary file (Whisper expects file path, not BytesIO)
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+            temp_file.write(audio_data)
+            temp_file_path = temp_file.name
         
-        # Transcribe with Whisper
-        result = model.transcribe(
-            temp_file,
-            language="en",
-            temperature=0.0,
-            verbose=False,
-            word_timestamps=False
-        )
+        try:
+            # Transcribe with Whisper using file path
+            result = model.transcribe(
+                temp_file_path,
+                language="en",
+                temperature=0.0,
+                verbose=False,
+                word_timestamps=False
+            )
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_file_path)
         
         processing_time = asyncio.get_event_loop().time() - start_time
         
